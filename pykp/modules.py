@@ -15,21 +15,24 @@ class RNNEncoder(nn.Module):
         self.embedding = nn.Embedding(
             self.vocab_size,
             self.embed_size,
-            self.pad_token
+            self.pad_token  # padding index, when encountered return 0 vector
         )
         self.rnn = nn.GRU(input_size=embed_size, hidden_size=hidden_size, num_layers=num_layers,
                           bidirectional=bidirectional, batch_first=True, dropout=dropout)
 
     def forward(self, src, src_lens):
         """
-        :param src: [batch, src_seq_len]
-        :param src_lens: a list containing the length of src sequences for each batch, with len=batch
+        :param src: [batch, src_seq_len], each element here is a word index
+        :param src_lens: a list containing the length of src sequences for each batch, with len=batch, must be on cpu
         :return:
         """
         src_embed = self.embedding(src)  # [batch, src_len, embed_size]
+        # considering data-reading efficiency, padded index is better to not be fed into RNN, thus remove them in this pack
         packed_input_src = nn.utils.rnn.pack_padded_sequence(src_embed, src_lens, batch_first=True)
+        # the shape of output and hidden state output are not the same!
         memory_bank, encoder_final_state = self.rnn(packed_input_src)
         # ([batch, seq_len, num_directions*hidden_size], [num_layer * num_directions, batch, hidden_size])
+        
         memory_bank, _ = nn.utils.rnn.pad_packed_sequence(memory_bank, batch_first=True)  # unpack (back to padded)
 
         # only extract the final state in the last layer
