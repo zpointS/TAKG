@@ -73,10 +73,11 @@ class Attention(nn.Module):
         decoder_size = decoder_state.size(1)
 
         if self.attn_mode == "general":
-            # project memory_bank
+            # project memory_bank, but why have to project?
             memory_bank_ = memory_bank.view(-1,
                                             memory_bank_size)  # [batch_size*max_input_seq_len, memory_bank_size]
             """
+            HERE is another solution of coverage.
             if self.coverage_attn:
                 coverage_input = coverage.view(-1, 1)  # [batch_size*max_input_seq_len, 1]
                 memory_bank_ += self.coverage_project(coverage_input)  # [batch_size*max_input_seq_len, decoder_size]
@@ -86,17 +87,25 @@ class Attention(nn.Module):
             """
 
             encoder_feature = self.memory_project(memory_bank_)  # [batch_size*max_input_seq_len, decoder size]
+            # WHY coverage?
             if self.coverage_attn:
                 coverage_input = coverage.view(-1, 1)  # [batch_size*max_input_seq_len, 1]
+                # the size of decoder size and encoder size MUST BE THE SAME?
                 encoder_feature += self.coverage_project(coverage_input)  # [batch_size*max_input_seq_len, decoder_size]
                 encoder_feature = self.tanh(encoder_feature)
 
-            # expand decoder state
+            # expand decoder state to stay alike as encoder-feature
+            # expand the tensor size at one certain dim to the given size, or enlarge it with a new dim
+            # only a new view of the self tensor, not changing the existing memory
+            # Expanding a tensor does not allocate new memory, but only creates a new view on the existing tensor 
+            # where a dimension of size one is expanded to a larger size by setting the stride to 0. 
+            # Any dimension of size 1 can be expanded to an arbitrary value without allocating new memory
             decoder_state_expanded = decoder_state.unsqueeze(1).expand(batch_size, max_input_seq_len,
                                                                        decoder_size).contiguous()
             decoder_state_expanded = decoder_state_expanded.view(-1,
                                                                  decoder_size)  # [batch_size*max_input_seq_len, decoder_size]
             # Perform bi-linear operation
+            # the dot product of the decoder state
             scores = torch.bmm(decoder_state_expanded.unsqueeze(1),
                                encoder_feature.unsqueeze(2))  # [batch_size*max_input_seq_len, 1, 1]
 
