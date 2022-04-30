@@ -12,7 +12,7 @@ class MaskedSoftmax(nn.Module):
             dist = F.softmax(logit - torch.max(logit, dim=self.dim, keepdim=True)[0], dim=self.dim)
         else:
             dist_ = F.softmax(logit - torch.max(logit, dim=self.dim, keepdim=True)[0], dim=self.dim) * mask
-            normalization_factor = dist_.sum(self.dim, keepdim=True)
+            normalization_factor = dist_.sum(self.dim, keepdim=True) # 看看keepdim的时候的形状
             dist = dist_ / normalization_factor
         return dist
 
